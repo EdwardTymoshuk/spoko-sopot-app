@@ -7,11 +7,11 @@ type Usage = { day: string; total: number; minute: number; requests: number; cli
 
 // Shared by both Next processes on this VPS and retained across application restarts.
 // Storage/lock failure denies requests instead of making unmetered upstream calls.
-export async function reserveGoogleRequest(client: string, options: {
+export async function reserveGeoapifyRequest(client: string, options: {
   directory?: string; dailyLimit?: number; now?: number
 } = {}): Promise<boolean> {
-  const directory = options.directory ?? process.env.GOOGLE_MAPS_USAGE_DIR ?? join(tmpdir(), 'spoko-google-maps-usage')
-  const limit = options.dailyLimit ?? Number(process.env.GOOGLE_MAPS_DAILY_LIMIT ?? 250)
+  const directory = options.directory ?? process.env.GEOAPIFY_USAGE_DIR ?? join(tmpdir(), 'spoko-geoapify-usage')
+  const limit = options.dailyLimit ?? Number(process.env.GEOAPIFY_DAILY_LIMIT ?? 250)
   if (!Number.isSafeInteger(limit) || limit <= 0) return false
   const now = options.now ?? Date.now()
   const day = new Date(now).toISOString().slice(0, 10)

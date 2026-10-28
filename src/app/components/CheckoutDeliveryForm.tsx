@@ -13,9 +13,12 @@ import { Input } from "@/app/components/ui/input"
 import { Skeleton } from "@/app/components/ui/skeleton"
 import { Textarea } from "@/app/components/ui/textarea"
 import { DeliveryMapLoader } from "@/app/components/DeliveryMapLoader"
-
-import RestaurantMap from "@/app/components/RestaurantMap"
+import dynamic from "next/dynamic"
 import TimeDeliverySwitcher from "@/app/components/TimeDeliverySwitcher"
+
+// Leaflet touches `window` at import time, so the map must never be rendered
+// during SSR/prerendering.
+const RestaurantMap = dynamic(() => import("@/app/components/RestaurantMap"), { ssr: false })
 
 import { useCart } from "@/app/context/CartContext"
 import { useCheckout } from "@/app/context/CheckoutContext"

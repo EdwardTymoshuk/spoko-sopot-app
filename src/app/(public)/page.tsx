@@ -2,7 +2,6 @@
 
 import DeliveryForm from '@/app/components/DeliveryForm'
 import LoadingButton from '@/app/components/LoadingButton'
-import RestaurantMap from '@/app/components/RestaurantMap'
 import { Skeleton } from '@/app/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
 import { RESTAURANT_COORDINATES } from '@/config/constants'
@@ -12,7 +11,12 @@ import { DeliveryMapLoader } from '@/app/components/DeliveryMapLoader'
 import Image from 'next/image'
 import { Bike, Info, Loader2, Mail, Phone, Store } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useMemo, useState, useTransition } from 'react'
+
+// Leaflet touches `window` at import time, so the map must never be rendered
+// during SSR/prerendering.
+const RestaurantMap = dynamic(() => import('@/app/components/RestaurantMap'), { ssr: false })
 
 const FORCE_ORDERING_OPEN_FOR_TEST =
   process.env.NEXT_PUBLIC_FORCE_ORDERING_OPEN === 'true'

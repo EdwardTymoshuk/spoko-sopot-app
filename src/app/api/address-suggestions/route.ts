@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authorizeMapsRequest, fetchGoogleMaps, mapsError } from '@/server/google-maps/client'
+import { authorizeMapsRequest, fetchGeoapify, mapsError } from '@/server/geoapify/client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-
-type GooglePrediction = {
-  description: string
-  place_id: string
-  structured_formatting?: {
-    main_text?: string
-    secondary_text?: string
-  }
-}
 
 export async function GET(request: NextRequest) {
   const input = request.nextUrl.searchParams.get('input')?.trim()
@@ -24,25 +15,25 @@ export async function GET(request: NextRequest) {
   const denied = await authorizeMapsRequest(request)
   if (denied) return denied
 
+  // bias is lon,lat (Geoapify convention), centered on Sopot.
   const params = new URLSearchParams({
-    input,
-    language: 'pl',
-    components: 'country:pl',
-    types: 'address',
-    location: '54.4416,18.5601',
-    radius: '35000',
+    text: input,
+    lang: 'pl',
+    filter: 'countrycode:pl',
+    bias: 'proximity:18.5601,54.4416',
+    limit: '5',
+    type: 'street',
   })
 
   try {
-    const data = await fetchGoogleMaps('autocomplete', params)
-    const predictions = Array.isArray(data.predictions) ? (data.predictions as GooglePrediction[]) : []
+    const results = await fetchGeoapify('autocomplete', params)
 
     return NextResponse.json({
-      suggestions: predictions.slice(0, 5).map((prediction) => ({
-        placeId: prediction.place_id,
-        description: prediction.description,
-        mainText: prediction.structured_formatting?.main_text ?? prediction.description,
-        secondaryText: prediction.structured_formatting?.secondary_text ?? '',
+      suggestions: results.slice(0, 5).map((result) => ({
+        placeId: result.place_id ?? result.formatted ?? '',
+        description: result.formatted ?? '',
+        mainText: result.address_line1 ?? result.formatted ?? '',
+        secondaryText: result.address_line2 ?? '',
       })),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch { return mapsError(502) }
