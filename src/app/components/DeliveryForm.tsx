@@ -81,7 +81,7 @@ export default function DeliveryForm({
   useEffect(() => {
     const input = addressQuery.trim()
 
-    if (input.length < 2) {
+    if (input.length < 3) {
       setSuggestions([])
       setSuggestionsOpen(false)
       setSuggestionsLoading(false)
@@ -120,7 +120,7 @@ export default function DeliveryForm({
           setSuggestionsLoading(false)
         }
       }
-    }, 250)
+    }, 500)
 
     return () => {
       controller.abort()
@@ -132,36 +132,41 @@ export default function DeliveryForm({
     setLoading(true)
     setAddressVerified(false)
 
-    const address = values.address
-    const deliveryCoordinates = await getCoordinates(address)
+    try {
+      const address = values.address
+      const deliveryCoordinates = await getCoordinates(address)
 
-    if (!deliveryCoordinates) {
-      toast.error('Podany adres nie istnieje.')
+      if (!deliveryCoordinates) {
+        toast.error('Podany adres nie istnieje.')
+        setLoading(false)
+        return
+      }
+
+      const inDeliveryArea = deliveryZones.some((zone) => {
+        const distance =
+          haversineDistance(RESTAURANT_COORDINATES, deliveryCoordinates) / 1000
+        return distance >= zone.minRadius && distance <= zone.maxRadius
+      })
+
+      setAddressCoordinates(deliveryCoordinates)
+
+      if (inDeliveryArea) {
+        setAddressVerified(true)
+        toast.success(
+          'Świetna wiadomość, Twój adres znajduje się w zasięgu naszej dostawy.'
+        )
+        localStorage.setItem('deliveryAddress', values.address)
+      } else {
+        toast.warning(
+          'Niestety, Twój adres znajduje się poza зasięgiem naszej dostawy.'
+        )
+      }
+
+    } catch {
+      toast.error('Sprawdzanie adresu jest chwilowo niedostępne. Zadzwoń: 530 659 666.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const inDeliveryArea = deliveryZones.some((zone) => {
-      const distance =
-        haversineDistance(RESTAURANT_COORDINATES, deliveryCoordinates) / 1000
-      return distance >= zone.minRadius && distance <= zone.maxRadius
-    })
-
-    setAddressCoordinates(deliveryCoordinates)
-
-    if (inDeliveryArea) {
-      setAddressVerified(true)
-      toast.success(
-        'Świetna wiadomość, Twój adres znajduje się w zasięgu naszej dostawy.'
-      )
-      localStorage.setItem('deliveryAddress', values.address)
-    } else {
-      toast.warning(
-        'Niestety, Twój adres znajduje się poza зasięgiem naszej dostawy.'
-      )
-    }
-
-    setLoading(false)
   }
 
   return (

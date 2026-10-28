@@ -33,34 +33,11 @@ export function haversineDistance(coords1: Coordinates, coords2: Coordinates): n
 }
 
 export async function getCoordinates(address: string): Promise<Coordinates | null> {
-	/**
-	 * Fetches lat/lng using Google Geocoding API.
-	 * Returns null if address is invalid or no results.
-	 */
-	if (!address || address.trim() === "") {
-		console.error("Address is empty or invalid.")
-		return null
-	}
-	try {
-		const response = await fetch(
-			`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-				address
-			)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-		)
-
-		const data = await response.json()
-
-		if (data.status !== "OK" || !data.results.length) {
-			console.error("Geocoding API returned an error or no results:", data.status)
-			return null
-		}
-
-		const { lat, lng } = data.results[0].geometry.location
-		return { lat, lng }
-	} catch (error) {
-		console.error("Error fetching from Geocoding API:", error)
-		return null
-	}
+	if (!address || !address.trim()) return null
+	const response = await fetch(`/api/geocode?${new URLSearchParams({ address: address.trim() })}`, { cache: 'no-store' })
+	if (!response.ok) throw new Error('Sprawdzanie adresu jest chwilowo niedostępne. Spróbuj ponownie później.')
+	const data = await response.json()
+	return data.coordinates ?? null
 }
 
 export async function isAddressInDeliveryArea(

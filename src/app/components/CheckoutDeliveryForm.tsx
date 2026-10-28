@@ -12,7 +12,7 @@ import { Button } from "@/app/components/ui/button"
 import { Input } from "@/app/components/ui/input"
 import { Skeleton } from "@/app/components/ui/skeleton"
 import { Textarea } from "@/app/components/ui/textarea"
-import { LoadScriptNext } from "@react-google-maps/api"
+import { DeliveryMapLoader } from "@/app/components/DeliveryMapLoader"
 
 import RestaurantMap from "@/app/components/RestaurantMap"
 import TimeDeliverySwitcher from "@/app/components/TimeDeliverySwitcher"
@@ -25,7 +25,7 @@ import { RESTAURANT_COORDINATES } from "@/config/constants"
 import {
 	Coordinates,
 	getCoordinates,
-	getDeliveryCost,
+	haversineDistance,
 	isAddressInDeliveryArea,
 } from "@/utils/deliveryUtils"
 import { trpc } from "@/utils/trpc"
@@ -367,13 +367,6 @@ export default function CheckoutDeliveryForm({
 		if (city && postalCode && street && buildingNumber) {
 			const addr = `${street} ${buildingNumber}, ${postalCode} ${city}`
 			setFullAddress(addr)
-			getCoordinates(addr)
-				.then((coords) => {
-					setDeliveryCoordinates(coords)
-				})
-				.catch(() => {
-					setDeliveryCoordinates(null)
-				})
 		} else {
 			setFullAddress("")
 			setDeliveryCoordinates(null)
@@ -388,16 +381,26 @@ export default function CheckoutDeliveryForm({
 			dispatch({ type: "SET_DELIVERY_COST", payload: null })
 			return
 		}
+		let cancelled = false
 		const calcCost = async () => {
 			try {
-				const cost = await getDeliveryCost(debouncedAddress, deliveryZones)
-				dispatch({ type: "SET_DELIVERY_COST", payload: cost })
+				const coords = await getCoordinates(debouncedAddress)
+				if (cancelled) return
+				setDeliveryCoordinates(coords)
+				const distance = coords ? haversineDistance(RESTAURANT_COORDINATES, coords) / 1000 : -1
+				const zone = deliveryZones.find(zone => distance >= zone.minRadius && distance <= zone.maxRadius)
+				dispatch({ type: "SET_DELIVERY_COST", payload: zone?.price ?? -1 })
 			} catch {
-				dispatch({ type: "SET_DELIVERY_COST", payload: -1 })
+				if (!cancelled) {
+					setDeliveryCoordinates(null)
+					dispatch({ type: "SET_DELIVERY_COST", payload: -1 })
+				}
 			}
 		}
-		calcCost()
-	}, [debouncedAddress, deliveryZones, dispatch])
+		void calcCost()
+		return () => { cancelled = true }
+
+	}, [debouncedAddress, deliveryZones, dispatch, setDeliveryCoordinates])
 
 	/**
 	 * Restores an address from localStorage if available.
@@ -587,9 +590,7 @@ export default function CheckoutDeliveryForm({
 					</div>
 
 					<div className="h-80 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 xl:h-96">
-						<LoadScriptNext
-							googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-							libraries={["places"]}
+						<DeliveryMapLoader
 							loadingElement={
 								<div className="flex gap-2">
 									<div className="space-y-4">
@@ -611,7 +612,7 @@ export default function CheckoutDeliveryForm({
 								addressMarker={deliveryCoordinates}
 								className="w-full h-full"
 							/>
-						</LoadScriptNext>
+						</DeliveryMapLoader>
 					</div>
 
 					<div className="w-full flex flex-col">

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizeMapsRequest, fetchGoogleMaps, mapsError } from '@/server/google-maps/client'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 type GooglePrediction = {
   description: string
@@ -14,19 +16,16 @@ type GooglePrediction = {
 export async function GET(request: NextRequest) {
   const input = request.nextUrl.searchParams.get('input')?.trim()
 
-  if (!input || input.length < 2) {
+  if (!input || input.length < 3) {
     return NextResponse.json({ suggestions: [] })
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
-  if (!apiKey) {
-    return NextResponse.json({ suggestions: [] })
-  }
+  if (input.length > 200) return mapsError(400)
+  const denied = await authorizeMapsRequest(request)
+  if (denied) return denied
 
   const params = new URLSearchParams({
     input,
-    key: apiKey,
     language: 'pl',
     components: 'country:pl',
     types: 'address',
@@ -34,23 +33,17 @@ export async function GET(request: NextRequest) {
     radius: '35000',
   })
 
-  const response = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`, {
-    cache: 'no-store',
-  })
+  try {
+    const data = await fetchGoogleMaps('autocomplete', params)
+    const predictions = Array.isArray(data.predictions) ? (data.predictions as GooglePrediction[]) : []
 
-  if (!response.ok) {
-    return NextResponse.json({ suggestions: [] })
-  }
-
-  const data = await response.json()
-  const predictions = Array.isArray(data.predictions) ? (data.predictions as GooglePrediction[]) : []
-
-  return NextResponse.json({
-    suggestions: predictions.slice(0, 5).map((prediction) => ({
-      placeId: prediction.place_id,
-      description: prediction.description,
-      mainText: prediction.structured_formatting?.main_text ?? prediction.description,
-      secondaryText: prediction.structured_formatting?.secondary_text ?? '',
-    })),
-  })
+    return NextResponse.json({
+      suggestions: predictions.slice(0, 5).map((prediction) => ({
+        placeId: prediction.place_id,
+        description: prediction.description,
+        mainText: prediction.structured_formatting?.main_text ?? prediction.description,
+        secondaryText: prediction.structured_formatting?.secondary_text ?? '',
+      })),
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  } catch { return mapsError(502) }
 }

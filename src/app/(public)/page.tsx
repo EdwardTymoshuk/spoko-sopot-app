@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/ta
 import { RESTAURANT_COORDINATES } from '@/config/constants'
 import { type DeliveryZone } from '../types/types'
 import { trpc } from '@/utils/trpc'
-import { LoadScriptNext } from '@react-google-maps/api'
+import { DeliveryMapLoader } from '@/app/components/DeliveryMapLoader'
 import Image from 'next/image'
 import { Bike, Info, Loader2, Mail, Phone, Store } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -175,9 +175,7 @@ const Home = () => {
                 <p className="text-sm font-medium text-white/80">Sprawdź, gdzie dowozimy</p>
               </div>
               <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/35 bg-slate-100/80">
-                <LoadScriptNext
-                  googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
-                  libraries={['geometry']}
+                <DeliveryMapLoader
                   loadingElement={
                     <div className="flex h-full min-h-[280px] w-full items-center justify-center bg-secondary/10">
                       <div className="flex flex-col items-center gap-3 text-primary">
@@ -195,7 +193,7 @@ const Home = () => {
                       deliveryZones={deliveryZones}
                     />
                   </div>
-                </LoadScriptNext>
+                </DeliveryMapLoader>
               </div>
             </div>
           </div>
