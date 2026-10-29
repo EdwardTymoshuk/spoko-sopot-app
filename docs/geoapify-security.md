@@ -13,12 +13,25 @@ without a server key.
 
 ## Separate credentials (restrictions must be saved before deployment)
 
-- `GEOAPIFY_SERVER_API_KEY`: server-only. In the Geoapify project dashboard,
-  restrict it by IP to the VPS's actual outbound public IP (verify it;
-  currently the host is 57.128.251.48). This key is used only for the
+- `GEOAPIFY_SERVER_API_KEY`: server-only. This key is used only for the
   Geocoding and Address Autocomplete APIs through `/api/geocode` and
   `/api/address-suggestions`. Never add this key to any `NEXT_PUBLIC`
   variable.
+  **IP restriction did not reliably work for this project** (requests from
+  the VPS's verified outbound IP, `57.128.251.48`, were rejected even many
+  hours after saving the filter; Map Tiles and HTTP-Referer-restricted
+  requests on the same key/project worked fine — this looks like a
+  Geoapify-side limitation of IP-based key restriction, not a config
+  mistake). The IP filter is left in place in case Geoapify fixes this, but
+  the actual authorization comes from an **HTTP Referer restriction** set to
+  a private, non-public value (`https://internal.spoko-order.local/geoapify-proxy`)
+  that only our own outbound `fetch()` call in `fetchGeoapify()` sends — it
+  is never sent to or from a browser. Note this mechanism only rejects a
+  *mismatched* Referer; a request with **no** Referer header at all was not
+  rejected in testing. This is weaker than true IP-based auth, but the key
+  itself never leaves the server (verified absent from `.next/static`), so
+  the practical exposure is limited to someone who already has filesystem
+  access to the VPS.
 - `NEXT_PUBLIC_GEOAPIFY_BROWSER_KEY`: intentionally public, used only for map
   tiles (`https://maps.geoapify.com/v1/tile/...`). Restrict it by HTTP
   referrer/origin in the Geoapify dashboard to
