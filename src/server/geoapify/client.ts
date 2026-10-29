@@ -39,12 +39,20 @@ type GeoapifyFeatureProperties = {
 
 export type GeoapifyResult = GeoapifyFeatureProperties
 
+// Geoapify's IP allowlist for this key did not enforce reliably; the Referer
+// allowlist did. This value is never sent to a browser or any public
+// endpoint — it only authenticates our own outbound call to Geoapify.
+const GEOAPIFY_SERVER_REFERER = 'https://internal.spoko-order.local/geoapify-proxy'
+
 export async function fetchGeoapify(service: 'geocode' | 'autocomplete', params: URLSearchParams): Promise<GeoapifyResult[]> {
+  // Without an explicit format, Geoapify returns GeoJSON (`features`), not `results`.
+  params.set('format', 'json')
   params.set('apiKey', process.env.GEOAPIFY_SERVER_API_KEY!)
   // Fixed endpoint allowlist: caller cannot request an arbitrary Geoapify path.
   const path = service === 'geocode' ? 'geocode/search' : 'geocode/autocomplete'
   const response = await fetch(`https://api.geoapify.com/v1/${path}?${params}`, {
     cache: 'no-store', signal: AbortSignal.timeout(5000),
+    headers: { Referer: GEOAPIFY_SERVER_REFERER },
   })
   if (!response.ok) throw new Error('Geoapify request failed')
   const data = await response.json()
